@@ -1,13 +1,6 @@
 # Build container with all build deps and builds deb package
 FROM debian:9 as builder
 
-RUN sed -i 's/deb\.debian\.org/cloudfront\.debian\.net/g' /etc/apt/sources.list
-
-RUN apt-get update && apt-get install -y git && apt-get clean
-
-RUN git clone https://github.com/sipwise/rtpengine.git /rtpengine
-WORKDIR /rtpengine
-
 RUN apt-get update && apt-get install -y \
        build-essential \
        dpkg-dev \
@@ -18,7 +11,7 @@ RUN apt-get update && apt-get install -y \
        libglib2.0-dev \
        libhiredis-dev \
        libpcre3-dev \
-       libssl-dev \
+#       libssl-dev \
        markdown \
        libxmlrpc-core-c3-dev \
        nfs-common \
@@ -32,11 +25,29 @@ RUN apt-get update && apt-get install -y \
        libevent-dev \
        libjson-glib-dev \
        libpcap-dev \
-       git \
-    && ( ( apt-get install -y linux-headers-$(uname -r) linux-image-$(uname -r) && \
-      module-assistant update && \
-      module-assistant auto-install ngcp-rtpengine-kernel-source ) || true ) \
-    && apt-get clean && rm -rf /var/lib/apt/lists
+       git
+
+#RUN apt-get install -y libssl1.0-dev libssl1.1
+#RUN apt-get install -y libssl1.0-dev
+RUN apt-get install -y libssl-dev
+#RUN apt-get install -y linux-headers-$(uname -r) linux-image-$(uname -r)
+#RUN module-assistant update \
+#    && module-assistant auto-install ngcp-rtpengine-kernel-source ) || true ) \
+RUN apt-get clean && rm -rf /var/lib/apt/lists
+
+
+ARG RTP_VERSION
+
+RUN echo "RTP Version: ${RTP_VERSION}"
+
+RUN sed -i 's/deb\.debian\.org/cloudfront\.debian\.net/g' /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y git && apt-get clean
+
+RUN git clone https://github.com/sipwise/rtpengine.git /rtpengine
+WORKDIR /rtpengine
+RUN git checkout tags/${RTP_VERSION}
+
 
 RUN dpkg-checkbuilddeps
 RUN dpkg-buildpackage -b -us -uc
