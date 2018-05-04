@@ -1,54 +1,30 @@
 # Build container with all build deps and builds deb package
 FROM debian:9 as builder
 
-RUN apt-get update && apt-get install -y \
-       build-essential \
-       dpkg-dev \
-       debhelper \
-       iptables-dev \
-       netcat \
-       libcurl4-openssl-dev \
-       libglib2.0-dev \
-       libhiredis-dev \
-       libpcre3-dev \
-#       libssl-dev \
-       markdown \
-       libxmlrpc-core-c3-dev \
-       nfs-common \
-       dkms \
-       default-libmysqlclient-dev \
-       libavcodec-dev \
-       libavfilter-dev \
-       libavformat-dev \
-       libavresample-dev \
-       libavutil-dev \
-       libevent-dev \
-       libjson-glib-dev \
-       libpcap-dev \
-       git
-
-#RUN apt-get install -y libssl1.0-dev libssl1.1
-#RUN apt-get install -y libssl1.0-dev
-RUN apt-get install -y libssl-dev
-#RUN apt-get install -y linux-headers-$(uname -r) linux-image-$(uname -r)
-#RUN module-assistant update \
-#    && module-assistant auto-install ngcp-rtpengine-kernel-source ) || true ) \
-RUN apt-get clean && rm -rf /var/lib/apt/lists
-
-
-ARG RTP_VERSION
-
-RUN echo "RTP Version: ${RTP_VERSION}"
-
 RUN sed -i 's/deb\.debian\.org/cloudfront\.debian\.net/g' /etc/apt/sources.list
+RUN apt-get update 
+RUN apt-get install -y build-essential dpkg-dev debhelper iptables-dev netcat libcurl4-openssl-dev libglib2.0-dev libhiredis-dev libpcre3-dev libssl-dev markdown \
+libxmlrpc-core-c3-dev nfs-common dkms default-libmysqlclient-dev libavcodec-dev libavfilter-dev libavformat-dev libavresample-dev libavutil-dev libevent-dev \
+libjson-glib-dev libpcap-dev git wget unzip
 
-RUN apt-get update && apt-get install -y git && apt-get clean
+ARG RTPE_VERSION
+ARG BCG_VERSION
+
+RUN echo "RTP Version: $RTPE_VERSION"
+RUN echo "BCG Version: $BCG_VERSION"
+
+RUN git clone https://github.com/BelledonneCommunications/bcg729.git /bcg
+WORKDIR /bcg
+RUN git clone https://github.com/ossobv/bcg729-deb.git debian
+RUN git checkout tags/${BCG_VERSION}
+RUN dpkg-buildpackage -b -us -uc
+
+WORKDIR /
+RUN apt-get install -y /*.deb
 
 RUN git clone https://github.com/sipwise/rtpengine.git /rtpengine
 WORKDIR /rtpengine
-RUN git checkout tags/${RTP_VERSION}
-
-
+RUN git checkout tags/${RTPE_VERSION}
 RUN dpkg-checkbuilddeps
 RUN dpkg-buildpackage -b -us -uc
 
@@ -86,7 +62,7 @@ ENV TIMEOUT=60
 ENV SILENT_TIMEOUT=3600
 ENV PIDFILE=/var/run/ngcp-rtpengine-daemon.pid
 ENV FORK=no
-ENV TABLE=0
+ENV TABLE=-1
 ENV PORT_MIN=16384
 ENV PORT_MAX=16485
 ENV LOG_LEVEL=7
